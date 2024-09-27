@@ -52,8 +52,6 @@ public class hillCipher {
         String cipherText = matrixToString(cipherTextMatrix);
 
         System.out.println("Cipher Text: " + cipherText);
-
-        
         sc.close();
     }
 }
