@@ -1,8 +1,8 @@
-// Point class to represent a point on the elliptic curve
-class Point {
-    long x;
-    long y;
+import java.util.Random;
 
+class Point {
+    long x, y;
+    
     public Point(long x, long y) {
         this.x = x;
         this.y = y;
@@ -10,18 +10,48 @@ class Point {
 }
 
 public class ECC {
-    private long a; // Coefficient a in the elliptic curve equation
-    private long p; // Prime number defining the field
-
-    public ECC(long a, long p) {
+    private long a, b, p; // y^2 = x^3 + ax + b mod p
+    private Point G;      
+    private long n;       
+    private long k;       
+    private Point Q;      
+    
+    public ECC(long a, long b, long p, Point G, long n) {
         this.a = a;
+        this.b = b;
         this.p = p;
+        this.G = G;
+        this.n = n;
+        this.k = generatePrivateKey();
+        this.Q = pointMultiply(G, k); // Q = k * G
     }
 
+    private long generatePrivateKey() {
+        Random rand = new Random();
+        return rand.nextLong() % (n - 1) + 1; // Private key - range [1, n-1]
+    }
+
+    public Point getPublicKey() {
+        return Q;
+    }
+
+    public Point encrypt(Point M, Point recipientPublicKey) {
+        long k = generatePrivateKey(); 
+        Point C1 = pointMultiply(G, k); // C1 = k * G
+        Point C2 = pointAdd(M, pointMultiply(recipientPublicKey, k)); // C2 = M + k * Q
+        return new Point(C1.x, C2.x); 
+    }
+
+    public Point decrypt(Point C1, Point C2) {
+        Point M = pointSubtract(C2, pointMultiply(C1, k)); // M = C2 - k * C1
+        return M;
+    }
+
+    
     private Point pointAdd(Point P, Point Q) {
         if (P.x == -1 && P.y == -1) return Q;
         if (Q.x == -1 && Q.y == -1) return P;
-
+        
         long lambda;
         if (P.x == Q.x && P.y == Q.y) {
             lambda = (3 * P.x * P.x + a) * modInverse(2 * P.y, p) % p;
@@ -36,8 +66,23 @@ public class ECC {
     }
 
     private Point pointSubtract(Point P, Point Q) {
-        Point negQ = new Point(Q.x, -Q.y + p);
+        Point negQ = new Point(Q.x, -Q.y + p); // Negation of point Q
         return pointAdd(P, negQ);
+    }
+
+    // multiplication using double and add method
+    private Point pointMultiply(Point P, long k) {
+        Point result = new Point(-1, -1); 
+        Point addend = P;
+
+        while (k != 0) {
+            if ((k & 1) == 1) {
+                result = pointAdd(result, addend);
+            }
+            addend = pointAdd(addend, addend);
+            k >>= 1;
+        }
+        return result;
     }
 
     private long modInverse(long a, long m) {
@@ -52,7 +97,6 @@ public class ECC {
             m = a % m;
             a = t;
             t = x0;
-
             x0 = x1 - q * x0;
             x1 = t;
         }
@@ -62,25 +106,20 @@ public class ECC {
         return x1;
     }
 
-    private Point pointMultiply(Point P, long k) {
-        Point result = new Point(-1, -1); // Identity element (point at infinity)
-
-        for (long i = 0; i < k; i++) {
-            result = pointAdd(result, P);
-        }
-        
-        return result;
-    }
-
     public static void main(String[] args) {
-        long a = 2; // Example parameter for the elliptic curve
-        long p = 17; // Example prime for the field
-        ECC ecc = new ECC(a, p);
+        long a = 1, b = 1, p = 23;
+        Point G = new Point(1, 3);
+        long n = 19;
 
-        Point P = new Point(5, 1); // Example point on the curve
-        long k = 3; // Scalar to multiply
+        ECC ecc = new ECC(a, b, p, G, n);
 
-        Point result = ecc.pointMultiply(P, k);
-        System.out.println("Result of point multiplication: (" + result.x + ", " + result.y + ")");
+        Point M = new Point(10, 12);
+
+        Point recipientPublicKey = ecc.getPublicKey();
+        Point ciphertext = ecc.encrypt(M, recipientPublicKey);
+        System.out.println("Ciphertext: (" + ciphertext.x + ", " + ciphertext.y + ")");
+
+        Point decryptedMessage = ecc.decrypt(ciphertext, ciphertext);
+        System.out.println("Decrypted Message: (" + decryptedMessage.x + ", " + decryptedMessage.y + ")");
     }
 }

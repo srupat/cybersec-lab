@@ -203,5 +203,6 @@ public class SDES {
             System.out.print(i + " ");
         }
 
+        sc.close();
     }
 }
