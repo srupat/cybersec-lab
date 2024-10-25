@@ -28,7 +28,7 @@ public class ECC {
 
     private long generatePrivateKey() {
         Random rand = new Random();
-        return rand.nextLong() % (n - 1) + 1; // Private key - range [1, n-1]
+        return Math.abs(rand.nextLong() % (n - 1)) + 1; // Private key - range [1, n-1]
     }
 
     public Point getPublicKey() {
@@ -66,7 +66,7 @@ public class ECC {
     }
 
     private Point pointSubtract(Point P, Point Q) {
-        Point negQ = new Point(Q.x, -Q.y + p); // Negation of point Q
+        Point negQ = new Point(Q.x, (-Q.y + p) % p); // Negation of point Q
         return pointAdd(P, negQ);
     }
 

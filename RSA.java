@@ -42,7 +42,7 @@ public class RSA {
         Random random = new Random();
         long e;
         do {
-            e = random.nextInt((int) (phi - 2)) + 2; // e < phi but should be > 2
+            e = random.nextInt((int) (phi - 2)) + 2; // e < phi but should be >= 2
         } while(gcd(e, phi) != 1);
         return e;
     }

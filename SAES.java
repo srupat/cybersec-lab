@@ -4,6 +4,11 @@ public class SAES {
             { "0110", "0010", "0000", "0011" },
             { "1100", "1110", "1111", "0111" } };
 
+    static String[][] invSbox = { { "1010", "0101", "1001", "1011" },
+            { "1000", "1111", "0010", "1110" },
+            { "0000", "0011", "1111", "0111" },
+            { "1100", "1101", "0001", "0110" } };
+
     static String w0, w1, w2, w3, w4, w5;
     static String roundConstant1 = "10000000";
     static String roundConstant2 = "00110000";
@@ -29,7 +34,18 @@ public class SAES {
             int col = Integer.parseInt(nibble.substring(2, 4), 2);
             result += sbox[row][col];
         }
-        return result;        
+        return result;
+    }
+
+    static String invSubNibble(String s) {
+        String result = "";
+        for (int i = 0; i < s.length(); i += 4) {
+            String nibble = s.substring(i, i + 4);
+            int row = Integer.parseInt(nibble.substring(0, 2), 2);
+            int col = Integer.parseInt(nibble.substring(2, 4), 2);
+            result += invSbox[row][col];
+        }
+        return result;
     }
 
     static String rotateNibble(String nibble) {
@@ -58,17 +74,12 @@ public class SAES {
         key1 = w0 + w1;
         key2 = w2 + w3;
         key3 = w4 + w5;
-
-        System.out.println("Key 1: " + key1);
-        System.out.println("Key 2: " + key2);
-        System.out.println("Key 3: " + key3);
     }
 
     static String mixColumns(String s) {
         int[][] mixMatrix = { { 1, 4 }, { 4, 1 } };
         int[][] stateMatrix = new int[2][2];
 
-        // Populate the stateMatrix from the binary string 's'
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 2; j++) {
                 String binaryString = s.substring(8 * i + 4 * j, 8 * i + 4 * j + 4);
@@ -78,23 +89,21 @@ public class SAES {
 
         int[][] mixedMatrix = new int[2][2];
 
-        // Mix the columns
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 2; j++) {
                 mixedMatrix[i][j] = 0;
                 for (int k = 0; k < 2; k++) {
                     int mul = mixMatrix[i][k] * stateMatrix[k][j];
-                    mixedMatrix[i][j] ^= (mul ^ ((mul & 0x10) >> 4) * 0x13) & 0xF; // keep the result within 4 bits
+                    mixedMatrix[i][j] ^= (mul ^ ((mul & 0x10) >> 4) * 0x13) & 0xF;
                 }
             }
         }
 
-        // Convert the mixedMatrix back to a binary string
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 2; j++) {
                 result.append(String.format("%4s", Integer.toBinaryString(mixedMatrix[i][j]))
-                        .replace(' ', '0')); // convert back to binary and pad with zeroes if necessary
+                        .replace(' ', '0'));
             }
         }
 
@@ -103,35 +112,70 @@ public class SAES {
 
     static String encrypt(String input) {
         String cipher = input;
-        System.out.println("Initial input: " + cipher);
 
         cipher = xorStrings(cipher, key1);
-        System.out.println("After round key 1: " + cipher);
 
-        // Round 1
         cipher = subNibble(cipher);
-        System.out.println("After subNibble: " + cipher);
-
         cipher = shiftRow(cipher);
-        System.out.println("After shiftRow: " + cipher);
-
         cipher = mixColumns(cipher);
-        System.out.println("After mixColumns: " + cipher);
-
         cipher = xorStrings(cipher, key2);
-        System.out.println("After round key 2: " + cipher);
 
-        // Round 2
         cipher = subNibble(cipher);
-        System.out.println("After subNibble: " + cipher);
-
         cipher = shiftRow(cipher);
-        System.out.println("After shiftRow: " + cipher);
-
         cipher = xorStrings(cipher, key3);
-        System.out.println("After round key 3: " + cipher);
 
         return cipher;
+    }
+
+    static String invMixColumns(String s) {
+        int[][] invMixMatrix = { { 9, 2 }, { 2, 9 } };
+        int[][] stateMatrix = new int[2][2];
+
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                String binaryString = s.substring(8 * i + 4 * j, 8 * i + 4 * j + 4);
+                stateMatrix[i][j] = Integer.parseInt(binaryString, 2);
+            }
+        }
+
+        int[][] mixedMatrix = new int[2][2];
+
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                mixedMatrix[i][j] = 0;
+                for (int k = 0; k < 2; k++) {
+                    int mul = invMixMatrix[i][k] * stateMatrix[k][j];
+                    mixedMatrix[i][j] ^= (mul ^ ((mul & 0x10) >> 4) * 0x13) & 0xF;
+                }
+            }
+        }
+
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                result.append(String.format("%4s", Integer.toBinaryString(mixedMatrix[i][j]))
+                        .replace(' ', '0'));
+            }
+        }
+
+        return result.toString();
+    }
+
+    static String decrypt(String input) {
+        String plainText = input;
+
+        plainText = xorStrings(plainText, key3);
+        plainText = shiftRow(plainText);
+        plainText = invSubNibble(plainText);
+
+        plainText = xorStrings(plainText, key2);
+        plainText = invMixColumns(plainText);
+        plainText = shiftRow(plainText);
+        plainText = invSubNibble(plainText);
+
+        plainText = xorStrings(plainText, key1);
+
+        return plainText;
     }
 
     public static void main(String[] args) {
@@ -143,5 +187,8 @@ public class SAES {
 
         System.out.println("Original input: " + input);
         System.out.println("Encrypted output: " + cipher);
+
+        String decrypted = decrypt(cipher);
+        System.out.println("Decrypted output: " + decrypted);
     }
 }

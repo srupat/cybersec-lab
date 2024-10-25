@@ -14,7 +14,7 @@ public class SHA1 {
         int originalLength = message.length;
         long bitLength = (long) originalLength * 8;
 
-        int paddingLength = (56 - (originalLength + 1) % 64) % 64;
+        int paddingLength = (56 - (originalLength + 1) % 64) % 64; // 56 bytes = 448 bits
         byte[] paddedMessage = new byte[originalLength + paddingLength + 9];
 
         System.arraycopy(message, 0, paddedMessage, 0, originalLength);
